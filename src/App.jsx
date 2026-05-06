@@ -12,6 +12,7 @@ import Order from './pages/Order';
 import Confirmation from './pages/Confirmation';
 import MyOrders from './pages/MyOrders';
 import Profile from './pages/Profile';
+import ScrollToTop from './components/ScrollToTop';
 
 const AppContent = () => {
   const location = useLocation();
@@ -48,6 +49,7 @@ function App() {
   return (
     <OrderProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <AppContent />
       </BrowserRouter>
     </OrderProvider>

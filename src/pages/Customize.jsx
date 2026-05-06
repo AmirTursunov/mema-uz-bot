@@ -14,15 +14,17 @@ const ZONES = [
 ];
 
 import TShirt3D from '../components/TShirt3D';
+import SizeSelector from '../components/SizeSelector';
 
 const Customize = () => {
   const navigate = useNavigate();
-  const { order, setColor, setPlacementImage, setPlacementPosition, removePlacementImage } = useOrder();
+  const { order, setColor, setPlacementImage, setPlacementPosition, removePlacementImage, setSize } = useOrder();
   const [activeZone, setActiveZone] = useState('front');
   const fileInputRef = React.useRef(null);
 
   const currentPlacement = order.placements[activeZone];
   const hasAnyImage = Object.values(order.placements).some(p => p.image);
+  const canContinue = hasAnyImage && order.size;
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -44,9 +46,9 @@ const Customize = () => {
           border-radius: var(--radius-3xl);
           margin-bottom: 24px;
           position: relative;
-          box-shadow: 0 30px 60px -12px rgba(0,0,0,0.5);
+          box-shadow: 0 30px 60px -12px rgba(0,0,0,0.55);
           overflow: hidden;
-          height: 450px;
+          height: 400px;
         }
         .controls-overlay {
           position: absolute; right: 16px; top: 16px; display: flex; flex-direction: column; gap: 10px; z-index: 10;
@@ -60,14 +62,14 @@ const Customize = () => {
         .floating-btn:active { transform: scale(0.9); }
         .hint-3d {
           position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-          font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600;
+          font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 600;
           pointer-events: none; text-transform: uppercase; letter-spacing: 0.1em;
         }
       `}</style>
 
       <div className="customize-page">
         <h1 className="customize-title" style={{textAlign: 'center', marginBottom: 24}}>
-          <span className="text-gradient">3D Dizayn</span>
+          <span className="text-gradient">Futbolka yaratish</span>
         </h1>
 
         <div className="preview-container-3d animate-fade-in-up">
@@ -87,16 +89,21 @@ const Customize = () => {
         </div>
 
         <div className="customize-section animate-fade-in-up">
-          <div className="section-label"><Palette size={16} /> Futbolka rangi</div>
+          <div className="section-label"><Palette size={16} /> 1. Rangni tanlang</div>
           <ColorPicker selected={order.color} onChange={setColor} />
+        </div>
+
+        <div className="customize-section animate-fade-in-up" style={{ marginTop: '24px' }}>
+          <div className="section-label"><Move size={16} /> 2. O'lchamni tanlang</div>
+          <SizeSelector selected={order.size} onChange={setSize} />
         </div>
 
         <input type="file" ref={fileInputRef} onChange={handleImageUpload} style={{display: 'none'}} accept="image/*" />
 
         <div className="continue-section">
-          <button className="btn btn-primary btn-block btn-lg" onClick={() => navigate('/preview')} disabled={!hasAnyImage}>
-            {hasAnyImage ? 'Davom etish' : 'Rasm yuklang'}
-            {hasAnyImage && <ArrowRight size={18} />}
+          <button className="btn btn-primary btn-block btn-lg" onClick={() => navigate('/order')} disabled={!canContinue}>
+            {canContinue ? 'Buyurtma berish' : (!hasAnyImage ? 'Rasm yuklang' : "O'lcham tanlang")}
+            {canContinue && <ArrowRight size={18} />}
           </button>
         </div>
       </div>
