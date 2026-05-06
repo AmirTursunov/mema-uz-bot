@@ -74,7 +74,7 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
         {/* FRONT decal */}
         {frontTex && (
           <Decal
-            position={[0, 0.04, 0.15]}
+            position={[0, -0.06, 0.15]}
             rotation={[0, 0, 0]}
             scale={[0.15, 0.2, 0.15]}
             map={frontTex}
@@ -88,7 +88,7 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
         {/* BACK decal */}
         {backTex && (
           <Decal
-            position={[0, 0.04, -0.15]}
+            position={[0, -0.06, -0.15]}
             rotation={[0, Math.PI, 0]}
             scale={[0.15, 0.2, 0.15]}
             map={backTex}
