@@ -20,8 +20,7 @@ const MyOrders = () => {
 
     const q = query(
       collection(db, 'orders'),
-      where('telegramUserId', 'in', [telegramUser.id, String(telegramUser.id)]),
-      orderBy('createdAt', 'desc')
+      where('telegramUserId', '==', String(telegramUser.id))
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -34,12 +33,17 @@ const MyOrders = () => {
       }));
 
       const localOrders = JSON.parse(localStorage.getItem('mema_my_orders') || '[]');
-      const merged = [...fbOrders];
+      
+      // Merge and sort manually to avoid Firestore Index requirement
+      let merged = [...fbOrders];
       localOrders.forEach(lo => {
         if (!merged.find(fo => fo.id === lo.id)) {
           merged.push(lo);
         }
       });
+
+      // Sort by date descending
+      merged.sort((a, b) => new Date(b.date) - new Date(a.date));
       
       setOrders(merged);
       setLoading(false);
