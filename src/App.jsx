@@ -11,6 +11,7 @@ import Preview from './pages/Preview';
 import Order from './pages/Order';
 import Confirmation from './pages/Confirmation';
 import MyOrders from './pages/MyOrders';
+import Profile from './pages/Profile';
 
 const AppContent = () => {
   const location = useLocation();
@@ -27,7 +28,7 @@ const AppContent = () => {
           <Route path="/order" element={<Order />} />
           <Route path="/confirmation" element={<Confirmation />} />
           <Route path="/orders" element={<MyOrders />} />
-          <Route path="/profile" element={<div style={{padding: 20, textAlign: 'center'}}>Profil sahifasi (Tez orada)</div>} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
       <BottomNav />

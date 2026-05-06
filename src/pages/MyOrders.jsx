@@ -4,12 +4,17 @@ import { ShoppingBag, Package, Clock, CheckCircle2, Plus } from 'lucide-react';
 
 const MyOrders = () => {
   const navigate = useNavigate();
-  // TODO: Fetch from Firebase when configured
-  const orders = [];
+  const [orders, setOrders] = React.useState([]);
+
+  React.useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('mema_my_orders') || '[]');
+    setOrders(saved);
+  }, []);
 
   return (
-    <div>
+    <div style={{ paddingBottom: '30px' }}>
       <style>{`
+        .orders-page { animation: fadeInUp 0.4s var(--ease-out); }
         .orders-title { font-size: 22px; font-weight: 800; font-family: var(--font-display); margin-bottom: 20px; }
         .orders-empty {
           text-align: center; padding: 60px 20px;
@@ -22,31 +27,55 @@ const MyOrders = () => {
         }
         .orders-empty-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
         .orders-empty-text { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+        
+        .order-card {
+          background: var(--bg-card); border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px;
+        }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .order-id { font-size: 15px; font-weight: 800; font-family: var(--font-display); }
+        .order-date { font-size: 12px; color: var(--text-muted); }
+        .order-details { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+        .order-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-light); padding-top: 12px; margin-top: 4px; }
+        .order-price { font-size: 15px; font-weight: 700; color: var(--text-primary); }
       `}</style>
 
-      <h1 className="orders-title"><span className="text-gradient">Buyurtmalarim</span></h1>
+      <div className="orders-page">
+        <h1 className="orders-title"><span className="text-gradient">Buyurtmalarim</span></h1>
 
-      {orders.length === 0 ? (
-        <div className="orders-empty">
-          <div className="orders-empty-icon"><ShoppingBag size={32} /></div>
-          <div className="orders-empty-title">Hali buyurtma yo'q</div>
-          <div className="orders-empty-text">Birinchi futbolkangizni dizayn qiling!</div>
-          <button className="btn btn-primary" onClick={() => navigate('/')}>
-            <Plus size={18} /> Yangi buyurtma
-          </button>
-        </div>
-      ) : (
-        orders.map((o, i) => (
-          <div key={i} className="card" style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700 }}>#{o.id?.slice(0,8)}</span>
-              <span className={`badge badge-${o.status === 'delivered' ? 'success' : o.status === 'pending' ? 'warning' : 'primary'}`}>
-                {o.status}
-              </span>
-            </div>
+        {orders.length === 0 ? (
+          <div className="orders-empty">
+            <div className="orders-empty-icon"><ShoppingBag size={32} /></div>
+            <div className="orders-empty-title">Hali buyurtma yo'q</div>
+            <div className="orders-empty-text">Birinchi futbolkangizni dizayn qiling!</div>
+            <button className="btn btn-primary" onClick={() => navigate('/')}>
+              <Plus size={18} /> Yangi buyurtma
+            </button>
           </div>
-        ))
-      )}
+        ) : (
+          orders.map((o, i) => (
+            <div key={i} className="order-card">
+              <div className="order-header">
+                <span className="order-id">#{o.id?.slice(0, 8)}</span>
+                <span className="badge badge-warning" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                  {o.status}
+                </span>
+              </div>
+              <div className="order-details">
+                <div>Kiyim: <b>{o.color === 'white' ? 'Oq' : 'Qora'} futbolka</b></div>
+                <div>O'lcham: <b>{o.size}</b></div>
+                <div className="order-date">{new Date(o.date).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+              <div className="order-footer">
+                <span className="order-price">{new Intl.NumberFormat('uz-UZ').format(o.totalPrice)} so'm</span>
+                <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => navigate('/')}>
+                  Yangi buyurtma
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 };

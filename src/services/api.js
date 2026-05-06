@@ -6,7 +6,7 @@ import { calculateTotal, formatPrice } from '../context/OrderContext';
 const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
 const CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
 
-// Helper to send message to Telegram
+// Text message helper no longer needed since we send caption with photo, but keeping for utility
 async function sendTelegramMessage(text) {
   if (!BOT_TOKEN || !CHAT_ID) return;
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -55,6 +55,7 @@ async function sendTelegramPhotoDirect(base64Data, caption) {
   formData.append('chat_id', CHAT_ID);
   formData.append('photo', blob, 'design.jpg');
   formData.append('caption', caption);
+  formData.append('parse_mode', 'HTML');
 
   await fetch(url, {
     method: 'POST',
@@ -70,26 +71,30 @@ export async function submitOrder(orderData) {
 
     // 1. Notify Admin via Telegram FIRST (fast and reliable)
     const { name, phone, address, deliveryType } = orderData.customerInfo;
+    const tgUser = orderData.telegramUsername && orderData.telegramUsername !== 'unknown' 
+      ? `@${orderData.telegramUsername}` 
+      : (orderData.telegramUserId || 'Noma\'lum');
+
     const text = `
 📦 <b>YANGI BUYURTMA #${orderId}</b>
 
 👤 <b>Mijoz:</b> ${name}
 📞 <b>Tel:</b> ${phone}
+✈️ <b>Telegram:</b> ${tgUser}
 📍 <b>Yetkazish:</b> ${deliveryType === 'delivery' ? 'Dastavka' : 'Olib ketish'} ${address ? '(' + address + ')' : ''}
 
 👕 <b>Futbolka:</b> ${orderData.color === 'white' ? 'Oq' : 'Qora'}
 📏 <b>Razmer:</b> ${orderData.size}
-💰 <b>Jami summa:</b> ${formatPrice(total)}
-
-👇 <i>Mijoz yuklagan rasmlar quyida:</i>
+💰 <b>Jami:</b> ${formatPrice(total)}
     `.trim();
 
-    await sendTelegramMessage(text);
-
-    // Send each uploaded image DIRECTLY to Telegram (Bypasses Firebase Storage hangs)
+    // Send the first uploaded image with the full text as caption, subsequent ones with short caption
+    let isFirst = true;
     for (const [zone, placement] of activePlacements) {
       if (placement.image) {
-        await sendTelegramPhotoDirect(placement.image, 'Print uchun rasm (' + zone + ')');
+        const caption = isFirst ? text : `Print uchun rasm (${zone})`;
+        await sendTelegramPhotoDirect(placement.image, caption);
+        isFirst = false;
       }
     }
 
@@ -112,6 +117,18 @@ export async function submitOrder(orderData) {
     } catch (fbError) {
       console.warn('Firebase error (can be ignored if Telegram works):', fbError);
     }
+
+    // 3. Save to localStorage for MyOrders tab
+    const savedOrders = JSON.parse(localStorage.getItem('mema_my_orders') || '[]');
+    savedOrders.unshift({
+      id: orderId,
+      color: orderData.color,
+      size: orderData.size,
+      totalPrice: total,
+      status: 'Tekshirilmoqda',
+      date: new Date().toISOString(),
+    });
+    localStorage.setItem('mema_my_orders', JSON.stringify(savedOrders));
 
     return orderId;
   } catch (error) {
