@@ -12,9 +12,64 @@ export default async function handler(req, res) {
       return res.status(500).send('Config error');
     }
 
-    const WEB_APP_URL = 'https://mema-uz.vercel.app'; // Replace with env var if needed
+    const WEB_APP_URL = 'https://mema-uz.vercel.app'; 
 
-    // Check if it's a message and contains text
+    // 1. Handle Callback Queries (Accept/Reject buttons)
+    if (body.callback_query) {
+      const callbackQuery = body.callback_query;
+      const data = callbackQuery.data; // e.g., accept_12345_67890
+      const [action, orderId, userId] = data.split('_');
+
+      if (action === 'accept') {
+        // Notify the customer
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: userId,
+            text: `✅ <b>Tabriklaymiz!</b>\n\nSizning <b>#${orderId}</b> raqamli buyurtmangiz qabul qilindi. Operatorimiz tez orada siz bilan bog'lanadi.`,
+            parse_mode: 'HTML'
+          })
+        });
+
+        // Answer callback query to stop loading spinner in admin view
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callback_query_id: callbackQuery.id,
+            text: "Mijozga xabar yuborildi ✅"
+          })
+        });
+
+        // Update admin message to show it's accepted
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageCaption`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: callbackQuery.message.chat.id,
+            message_id: callbackQuery.message.message_id,
+            caption: callbackQuery.message.caption + "\n\n✅ <b>QABUL QILINDI</b>",
+            parse_mode: 'HTML'
+          })
+        });
+      }
+
+      if (action === 'reject') {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callback_query_id: callbackQuery.id,
+            text: "Buyurtma rad etildi ❌"
+          })
+        });
+      }
+
+      return res.status(200).send('OK');
+    }
+
+    // 2. Handle Messages (/start)
     if (body.message && body.message.text) {
       const chatId = body.message.chat.id;
       const text = body.message.text;

@@ -46,7 +46,7 @@ function dataURLtoBlob(dataurl) {
 }
 
 // Helper to send photo directly as a file to Telegram
-async function sendTelegramPhotoDirect(base64Data, caption) {
+async function sendTelegramPhotoDirect(base64Data, caption, orderId, userId) {
   if (!BOT_TOKEN || !CHAT_ID) return;
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
   
@@ -57,25 +57,35 @@ async function sendTelegramPhotoDirect(base64Data, caption) {
   formData.append('caption', caption);
   formData.append('parse_mode', 'HTML');
 
+  // Add Accept/Reject buttons
+  if (orderId && userId) {
+    formData.append('reply_markup', JSON.stringify({
+      inline_keyboard: [
+        [
+          { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
+          { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` }
+        ]
+      ]
+    }));
+  }
+
   await fetch(url, {
     method: 'POST',
-    body: formData, // Do not set Content-Type, browser will set multipart/form-data
+    body: formData,
   });
 }
 
 export async function submitOrder(orderData) {
   try {
     const orderId = Date.now().toString(); 
-    const activePlacements = Object.entries(orderData.placements).filter(([, p]) => p.image);
-    const total = calculateTotal(orderData);
-
     // 1. Notify Admin via Telegram FIRST (fast and reliable)
     const { name, phone, address, deliveryType } = orderData.customerInfo;
+    const userId = orderData.telegramUserId || 'unknown';
     const tgUser = orderData.telegramUsername && orderData.telegramUsername !== 'unknown' 
       ? `@${orderData.telegramUsername}` 
-      : (orderData.telegramUserId || 'Noma\'lum');
+      : "Username yo'q";
 
-    const text = `
+    const getBaseText = (zone) => `
 📦 <b>YANGI BUYURTMA #${orderId}</b>
 
 👤 <b>Mijoz:</b> ${name}
@@ -85,6 +95,7 @@ export async function submitOrder(orderData) {
 
 👕 <b>Futbolka:</b> ${orderData.color === 'white' ? 'Oq' : 'Qora'}
 📏 <b>Razmer:</b> ${orderData.size}
+🎨 <b>Joylashuv:</b> ${zone === 'front' ? 'Oldi' : zone === 'back' ? 'Orqa' : zone === 'leftSleeve' ? 'Chap yeng' : 'O\'ng yeng'}
 💰 <b>Jami:</b> ${formatPrice(total)}
     `.trim();
 
@@ -92,8 +103,8 @@ export async function submitOrder(orderData) {
     let isFirst = true;
     for (const [zone, placement] of activePlacements) {
       if (placement.image) {
-        const caption = isFirst ? text : `Print uchun rasm (${zone})`;
-        await sendTelegramPhotoDirect(placement.image, caption);
+        const caption = isFirst ? getBaseText(zone) : `Print uchun rasm (${zone})`;
+        await sendTelegramPhotoDirect(placement.image, caption, orderId, userId);
         isFirst = false;
       }
     }

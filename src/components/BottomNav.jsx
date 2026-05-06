@@ -5,6 +5,25 @@ import { Home, ShoppingBag, User } from 'lucide-react';
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isVisible, setIsVisible] = React.useState(true);
+
+  React.useEffect(() => {
+    const handleFocus = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        setIsVisible(false);
+      }
+    };
+    const handleBlur = () => setIsVisible(true);
+
+    window.addEventListener('focusin', handleFocus);
+    window.addEventListener('focusout', handleBlur);
+    return () => {
+      window.removeEventListener('focusin', handleFocus);
+      window.removeEventListener('focusout', handleBlur);
+    };
+  }, []);
+
+  if (!isVisible) return null;
 
   const tabs = [
     { path: '/', icon: Home, label: 'Bosh sahifa' },
