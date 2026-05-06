@@ -159,7 +159,7 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
 
       <Canvas
         shadows
-        camera={{ position: [0, 0, 0.8], fov: 35 }}
+        camera={{ position: [0, 0, 2.5], fov: 25 }}
         gl={{ antialias: true, alpha: true }}
         onCreated={() => setReady(true)}
       >
@@ -168,7 +168,7 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
         <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#c0c8ff" />
         
         <Suspense fallback={null}>
-          <Center position={[0, -0.15, 0]}>
+          <Center>
             <ShirtModel color={color} frontImage={frontImage} backImage={backImage} />
           </Center>
           <Environment preset="city" />
