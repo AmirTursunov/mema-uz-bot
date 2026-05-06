@@ -45,34 +45,58 @@ function dataURLtoBlob(dataurl) {
   return new Blob([u8arr], {type:mime});
 }
 
-// Helper to send photo directly as a file to Telegram
-async function sendTelegramPhotoDirect(base64Data, caption, orderId, userId) {
+// Helper to send multiple photos as a single Media Group (Album)
+async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   if (!BOT_TOKEN || !CHAT_ID) return;
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup`;
   
-  const blob = dataURLtoBlob(base64Data);
   const formData = new FormData();
   formData.append('chat_id', CHAT_ID);
-  formData.append('photo', blob, 'design.jpg');
-  formData.append('caption', caption);
-  formData.append('parse_mode', 'HTML');
+  
+  const media = [];
+  
+  photos.forEach((photo, index) => {
+    const filename = `photo${index}.jpg`;
+    const blob = dataURLtoBlob(photo.image);
+    formData.append(filename, blob, filename);
+    
+    media.push({
+      type: 'photo',
+      media: `attach://${filename}`,
+      caption: index === 0 ? caption : '', // Caption goes on the first image
+      parse_mode: 'HTML'
+    });
+  });
 
-  // Add Accept/Reject buttons
-  if (orderId && userId) {
-    formData.append('reply_markup', JSON.stringify({
-      inline_keyboard: [
-        [
-          { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
-          { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` }
-        ]
-      ]
-    }));
-  }
+  formData.append('media', JSON.stringify(media));
 
-  await fetch(url, {
+  // Note: MediaGroup doesn't support reply_markup directly. 
+  // We will send the buttons as a separate small message after the media group.
+  const response = await fetch(url, {
     method: 'POST',
     body: formData,
   });
+
+  if (orderId && userId) {
+    const buttonUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    await fetch(buttonUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: `<b>#${orderId}</b> buyurtmani boshqarish:`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
+              { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` }
+            ]
+          ]
+        }
+      }),
+    });
+  }
 }
 
 export async function submitOrder(orderData) {
@@ -103,24 +127,16 @@ export async function submitOrder(orderData) {
 💳 <b>To'lov:</b> 100% Oldindan (Chek ilova qilindi)
     `.trim();
 
-    // Send the first uploaded image with the full text as caption, subsequent ones with short caption
-    let isFirst = true;
-    
+    // 1. Notify Admin via Telegram (Send all photos as a single Media Group)
     // Combine designs and receipt for sending
-    const allPhotos = [...activePlacements.map(([zone, p]) => ({ image: p.image, zone })), 
-                        { image: orderData.paymentReceipt, zone: 'payment' }];
+    const allPhotos = [
+      ...activePlacements.map(([zone, p]) => ({ image: p.image, zone })), 
+      { image: orderData.paymentReceipt, zone: 'payment' }
+    ].filter(p => p.image);
 
-    for (const photo of allPhotos) {
-      if (photo.image) {
-        const zoneName = photo.zone === 'front' ? 'Oldi' : 
-                         photo.zone === 'back' ? 'Orqa' : 
-                         photo.zone === 'leftSleeve' ? 'Chap yeng' : 
-                         photo.zone === 'rightSleeve' ? 'O\'ng yeng' : 'To\'lov cheki';
-                         
-        const caption = isFirst ? getBaseText(photo.zone) : `Rasm: ${zoneName}`;
-        await sendTelegramPhotoDirect(photo.image, caption, orderId, userId);
-        isFirst = false;
-      }
+    if (allPhotos.length > 0) {
+      const caption = getBaseText(allPhotos[0].zone);
+      await sendTelegramMediaGroup(allPhotos, caption, orderId, userId);
     }
 
     // 2. Try to save to Firestore, but don't hang if rules are not set
