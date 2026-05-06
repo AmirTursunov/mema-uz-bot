@@ -102,7 +102,17 @@ const MyOrders = () => {
             <div key={i} className="order-card">
               <div className="order-header">
                 <span className="order-id">#{o.id?.slice(0, 8)}</span>
-                <span className="badge badge-warning" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                <span 
+                  className="badge" 
+                  style={{ 
+                    background: o.status === 'Qabul qilindi' ? 'rgba(34, 197, 94, 0.1)' : 
+                                o.status === 'Bekor qilindi' ? 'rgba(239, 68, 68, 0.1)' : 
+                                'rgba(245, 158, 11, 0.1)', 
+                    color: o.status === 'Qabul qilindi' ? '#22c55e' : 
+                           o.status === 'Bekor qilindi' ? '#ef4444' : 
+                           '#f59e0b' 
+                  }}
+                >
                   {o.status}
                 </span>
               </div>

@@ -36,6 +36,18 @@ export default async function handler(req, res) {
       const [action, orderId, userId] = data.split('_');
 
       if (action === 'accept') {
+        // Update Firestore status
+        try {
+          const q = query(collection(db, 'orders'), where('orderId', '==', orderId));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const orderDoc = querySnapshot.docs[0];
+            await updateDoc(doc(db, 'orders', orderDoc.id), { status: 'accepted' });
+          }
+        } catch (e) {
+          console.error('Firestore Update Error (Accept):', e);
+        }
+
         // Notify the customer (if userId is valid)
         if (userId && userId !== 'unknown') {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
