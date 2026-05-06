@@ -168,11 +168,11 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
         <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#c0c8ff" />
         
         <Suspense fallback={null}>
-          <Center>
+          <Center position={[0, -0.15, 0]}>
             <ShirtModel color={color} frontImage={frontImage} backImage={backImage} />
           </Center>
           <Environment preset="city" />
-          <ContactShadows position={[0, -0.4, 0]} opacity={0.3} scale={2} blur={1.5} far={1} />
+          <ContactShadows position={[0, -0.5, 0]} opacity={0.3} scale={2} blur={1.5} far={1} />
         </Suspense>
 
         <OrbitControls
