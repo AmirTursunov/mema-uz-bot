@@ -1,3 +1,18 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDZuE19TxdljI90G54O-Lv4Ce4WouQIO8Q",
+  authDomain: "mema-uz.firebaseapp.com",
+  projectId: "mema-uz",
+  storageBucket: "mema-uz.firebasestorage.app",
+  messagingSenderId: "771416899748",
+  appId: "1:771416899748:web:87c26e22099dbdb80fa631"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(200).send('Webhook is running');
@@ -56,6 +71,18 @@ export default async function handler(req, res) {
       }
 
       if (action === 'reject') {
+        // Update Firestore status
+        try {
+          const q = query(collection(db, 'orders'), where('orderId', '==', orderId));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const orderDoc = querySnapshot.docs[0];
+            await updateDoc(doc(db, 'orders', orderDoc.id), { status: 'rejected' });
+          }
+        } catch (e) {
+          console.error('Firestore Update Error (Reject):', e);
+        }
+
         // Prompt for reason
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: 'POST',
@@ -92,6 +119,21 @@ export default async function handler(req, res) {
         if (orderIdMatch && userIdMatch) {
           const oId = orderIdMatch[1];
           const uId = userIdMatch[1];
+
+          // Update Firestore with rejection reason
+          try {
+            const q = query(collection(db, 'orders'), where('orderId', '==', oId));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const orderDoc = querySnapshot.docs[0];
+              await updateDoc(doc(db, 'orders', orderDoc.id), { 
+                status: 'rejected',
+                rejectionReason: text
+              });
+            }
+          } catch (e) {
+            console.error('Firestore Update Error (Reason):', e);
+          }
 
           if (uId !== 'unknown') {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {

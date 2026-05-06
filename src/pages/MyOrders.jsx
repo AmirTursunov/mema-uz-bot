@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, Package, Clock, CheckCircle2, Plus } from 'lucide-react';
 
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const MyOrders = () => {
@@ -12,46 +12,44 @@ const MyOrders = () => {
   const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
 
   React.useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const localOrders = JSON.parse(localStorage.getItem('mema_my_orders') || '[]');
-        
-        if (telegramUser?.id) {
-          const q = query(
-            collection(db, 'orders'),
-            where('customerInfo.telegramUserId', '==', String(telegramUser.id)),
-            orderBy('createdAt', 'desc')
-          );
-          
-          const querySnapshot = await getDocs(q);
-          const fbOrders = querySnapshot.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.data().orderId,
-            date: doc.data().createdAt?.toDate() || new Date(),
-            status: doc.data().status === 'pending' ? 'Tekshirilmoqda' : 
-                    doc.data().status === 'accepted' ? 'Qabul qilindi' : 'Bekor qilindi'
-          }));
+    if (!telegramUser?.id) {
+      setOrders(JSON.parse(localStorage.getItem('mema_my_orders') || '[]'));
+      setLoading(false);
+      return;
+    }
 
-          // Merge: use Firestore data as source of truth, but keep local-only ones if any
-          const merged = [...fbOrders];
-          localOrders.forEach(lo => {
-            if (!merged.find(fo => fo.id === lo.id)) {
-              merged.push(lo);
-            }
-          });
-          setOrders(merged);
-        } else {
-          setOrders(localOrders);
+    const q = query(
+      collection(db, 'orders'),
+      where('customerInfo.telegramUserId', '==', String(telegramUser.id)),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fbOrders = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.data().orderId,
+        date: doc.data().createdAt?.toDate() || new Date(),
+        status: doc.data().status === 'pending' ? 'Tekshirilmoqda' : 
+                doc.data().status === 'accepted' ? 'Qabul qilindi' : 'Bekor qilindi'
+      }));
+
+      const localOrders = JSON.parse(localStorage.getItem('mema_my_orders') || '[]');
+      const merged = [...fbOrders];
+      localOrders.forEach(lo => {
+        if (!merged.find(fo => fo.id === lo.id)) {
+          merged.push(lo);
         }
-      } catch (err) {
-        console.warn('Firestore fetch failed (permissions?):', err);
-        setOrders(JSON.parse(localStorage.getItem('mema_my_orders') || '[]'));
-      } finally {
-        setLoading(false);
-      }
-    };
+      });
+      
+      setOrders(merged);
+      setLoading(false);
+    }, (err) => {
+      console.warn('Firestore sync failed:', err);
+      setOrders(JSON.parse(localStorage.getItem('mema_my_orders') || '[]'));
+      setLoading(false);
+    });
 
-    fetchOrders();
+    return () => unsubscribe();
   }, [telegramUser?.id]);
 
   return (
