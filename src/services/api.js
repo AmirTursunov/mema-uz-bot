@@ -35,53 +35,47 @@ async function sendTelegramPhoto(photoUrl, caption) {
     }),
   });
 }
+// Helper to convert base64 to Blob
+function dataURLtoBlob(dataurl) {
+  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], {type:mime});
+}
+
+// Helper to send photo directly as a file to Telegram
+async function sendTelegramPhotoDirect(base64Data, caption) {
+  if (!BOT_TOKEN || !CHAT_ID) return;
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+  
+  const blob = dataURLtoBlob(base64Data);
+  const formData = new FormData();
+  formData.append('chat_id', CHAT_ID);
+  formData.append('photo', blob, 'design.jpg');
+  formData.append('caption', caption);
+
+  await fetch(url, {
+    method: 'POST',
+    body: formData, // Do not set Content-Type, browser will set multipart/form-data
+  });
+}
 
 export async function submitOrder(orderData) {
   try {
-    // 1. Upload images to Firebase Storage
-    const uploadedPlacements = {};
-    const orderId = Date.now().toString(); // simple unique ID
+    const orderId = Date.now().toString(); 
     const activePlacements = Object.entries(orderData.placements).filter(([, p]) => p.image);
+    const total = calculateTotal(orderData);
 
-    for (const [zone, placement] of activePlacements) {
-      if (!placement.image) continue;
-      
-      // placement.image is a base64 string from FileReader
-      const storageRef = ref(storage, `orders/${orderId}/${zone}.jpg`);
-      await uploadString(storageRef, placement.image, 'data_url');
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      uploadedPlacements[zone] = {
-        ...placement,
-        image: downloadURL, // replace base64 with Firebase URL
-      };
-    }
-
-    const finalOrderPlacements = { ...orderData.placements, ...uploadedPlacements };
-    const total = calculateTotal({ ...orderData, placements: finalOrderPlacements });
-
-    // 2. Save order to Firestore
-    const orderDoc = {
-      orderId,
-      color: orderData.color,
-      size: orderData.size,
-      placements: finalOrderPlacements,
-      customerInfo: orderData.customerInfo,
-      totalPrice: total,
-      status: 'pending',
-      createdAt: serverTimestamp(),
-    };
-
-    const docRef = await addDoc(collection(db, 'orders'), orderDoc);
-
-    // 3. Notify Admin via Telegram
+    // 1. Notify Admin via Telegram FIRST (fast and reliable)
     const { name, phone, address, deliveryType } = orderData.customerInfo;
     const text = `
 📦 <b>YANGI BUYURTMA #${orderId}</b>
 
 👤 <b>Mijoz:</b> ${name}
 📞 <b>Tel:</b> ${phone}
-📍 <b>Yetkazish:</b> ${deliveryType === 'delivery' ? 'Dastavka' : 'Olib ketish'} ${address ? `(${address})` : ''}
+📍 <b>Yetkazish:</b> ${deliveryType === 'delivery' ? 'Dastavka' : 'Olib ketish'} ${address ? \`(\${address})\` : ''}
 
 👕 <b>Futbolka:</b> ${orderData.color === 'white' ? 'Oq' : 'Qora'}
 📏 <b>Razmer:</b> ${orderData.size}
@@ -92,12 +86,34 @@ export async function submitOrder(orderData) {
 
     await sendTelegramMessage(text);
 
-    // Send each uploaded image to Telegram
-    for (const [zone, placement] of Object.entries(uploadedPlacements)) {
-      await sendTelegramPhoto(placement.image, `Print uchun rasm (${zone})`);
+    // Send each uploaded image DIRECTLY to Telegram (Bypasses Firebase Storage hangs)
+    for (const [zone, placement] of activePlacements) {
+      if (placement.image) {
+        await sendTelegramPhotoDirect(placement.image, \`Print uchun rasm (\${zone})\`);
+      }
     }
 
-    return docRef.id;
+    // 2. Try to save to Firestore, but don't hang if rules are not set
+    try {
+      const orderDoc = {
+        orderId,
+        color: orderData.color,
+        size: orderData.size,
+        customerInfo: orderData.customerInfo,
+        totalPrice: total,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      };
+      // We don't save the heavy base64 to Firestore to save space
+      await Promise.race([
+        addDoc(collection(db, 'orders'), orderDoc),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 3000))
+      ]);
+    } catch (fbError) {
+      console.warn('Firebase error (can be ignored if Telegram works):', fbError);
+    }
+
+    return orderId;
   } catch (error) {
     console.error('Error submitting order:', error);
     throw error;
