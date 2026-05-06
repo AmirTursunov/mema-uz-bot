@@ -1,68 +1,234 @@
 import React, { Suspense, useRef, useState, useEffect } from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, Environment, useGLTF, Decal, Center } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import {
+  useGLTF,
+  OrbitControls,
+  Environment,
+  ContactShadows,
+  Decal,
+  useTexture,
+} from '@react-three/drei';
 import * as THREE from 'three';
-import TShirtPreview from './TShirtPreview';
 
-const TShirtModel = ({ color, image }) => {
-  const { nodes, materials } = useGLTF('https://vazxmixjsiawhamofees.supabase.co/storage/v1/object/public/models/tshirt/model.gltf');
-  
-  const texture = image ? useLoader(THREE.TextureLoader, image) : null;
+// ─── Shirt mesh ───────────────────────────────────────────────
+const ShirtModel = ({ color, frontImage, backImage }) => {
+  const { scene } = useGLTF('/oversized_t-shirt.glb');
+  const groupRef = useRef();
+
+  // Color map
+  const colorMap = {
+    white: '#f5f5f5',
+    black: '#0f0f0f',
+    blue: '#1d3a8a',
+    red: '#991b1b',
+    green: '#14532d',
+    beige: '#e8dcc8',
+  };
+
+  // Front texture (upload qilingan rasm)
+  const [frontTex, setFrontTex] = useState(null);
+  const [backTex, setBackTex] = useState(null);
+
+  useEffect(() => {
+    if (frontImage) {
+      const loader = new THREE.TextureLoader();
+      loader.load(frontImage, (tex) => {
+        tex.flipY = false;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        setFrontTex(tex);
+      });
+    } else {
+      setFrontTex(null);
+    }
+  }, [frontImage]);
+
+  useEffect(() => {
+    if (backImage) {
+      const loader = new THREE.TextureLoader();
+      loader.load(backImage, (tex) => {
+        tex.flipY = false;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        setBackTex(tex);
+      });
+    } else {
+      setBackTex(null);
+    }
+  }, [backImage]);
+
+  // Apply color to all meshes inside the GLB
+  useEffect(() => {
+    const hex = colorMap[color] || colorMap.white;
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => {
+            mat.color.set(hex);
+            mat.needsUpdate = true;
+          });
+        } else if (child.material) {
+          child.material.color.set(hex);
+          child.material.needsUpdate = true;
+        }
+      }
+    });
+  }, [color, scene]);
+
+  // Collect shirt meshes for decal targets
+  const meshes = [];
+  scene.traverse((child) => {
+    if (child.isMesh) meshes.push(child);
+  });
 
   return (
-    <Center top>
-      <mesh castShadow receiveShadow geometry={nodes.tshirt.geometry} rotation={[0, 0, 0]} scale={2.2}>
-        <meshStandardMaterial color={color} roughness={0.7} />
-        {texture && (
-          <Decal position={[0, 0.05, 0.15]} rotation={[0, 0, 0]} scale={[0.15, 0.2, 0.1]} map={texture} polygonOffset polygonOffsetFactor={-10} />
-        )}
-      </mesh>
-    </Center>
+    <group ref={groupRef}>
+      <primitive object={scene} />
+
+      {/* FRONT decal */}
+      {frontTex && meshes[0] && (
+        <Decal
+          mesh={meshes[0]}
+          position={[0, 0.04, 0.09]}
+          rotation={[0, 0, 0]}
+          scale={[0.28, 0.28, 0.28]}
+          map={frontTex}
+          polygonOffset
+          polygonOffsetFactor={-10}
+          depthTest
+        />
+      )}
+
+      {/* BACK decal */}
+      {backTex && meshes[0] && (
+        <Decal
+          mesh={meshes[0]}
+          position={[0, 0.04, -0.09]}
+          rotation={[0, Math.PI, 0]}
+          scale={[0.28, 0.28, 0.28]}
+          map={backTex}
+          polygonOffset
+          polygonOffsetFactor={-10}
+          depthTest
+        />
+      )}
+    </group>
   );
 };
 
-const TShirt3D = ({ color = 'white', image }) => {
-  const [loadError, setLoadError] = useState(false);
-  const [webglSupported, setWebglSupported] = useState(true);
+// Preload the model
+useGLTF.preload('/oversized_t-shirt.glb');
 
-  useEffect(() => {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (!gl) setWebglSupported(false);
-  }, []);
+// ─── Loading spinner ──────────────────────────────────────────
+const Loader = () => (
+  <div
+    style={{
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'transparent',
+      gap: 12,
+      zIndex: 10,
+    }}
+  >
+    <div
+      style={{
+        width: 40,
+        height: 40,
+        border: '3px solid rgba(99,102,241,0.2)',
+        borderTop: '3px solid #6366f1',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }}
+    />
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'inherit' }}>
+      Yuklanmoqda...
+    </span>
+  </div>
+);
 
-  // If 3D fails or not supported, show the high-quality SVG fallback
-  if (loadError || !webglSupported) {
-    return (
-      <div style={{ padding: '20px', background: '#111', borderRadius: '24px' }}>
-        <TShirtPreview color={color} image={image} interactive={false} />
-      </div>
-    );
-  }
+// ─── Main export ──────────────────────────────────────────────
+const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
+  const [ready, setReady] = useState(false);
 
   return (
-    <div style={{ width: '100%', height: '100%', minHeight: '400px', background: '#111' }}>
-      <Canvas 
-        shadows 
-        camera={{ position: [0, 0, 2.5], fov: 45 }} 
-        onError={() => setLoadError(true)}
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        minHeight: 420,
+        borderRadius: 24,
+        overflow: 'hidden',
+        background: '#0a0a12',
+      }}
+    >
+      {!ready && <Loader />}
+
+      <Canvas
+        shadows
+        camera={{ position: [0, 0.1, 1.6], fov: 38 }}
+        gl={{ antialias: true, alpha: true }}
+        onCreated={() => setReady(true)}
+        style={{ background: 'transparent' }}
       >
-        <ambientLight intensity={0.5} />
-        <spotLight position={[10, 10, 10]} intensity={1} />
-        
+        {/* Lighting */}
+        <ambientLight intensity={1.2} />
+        <directionalLight
+          position={[3, 5, 4]}
+          intensity={2.5}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+        />
+        <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#c0c8ff" />
+        <pointLight position={[0, 3, 3]} intensity={0.6} color="#ffffff" />
+
         <Suspense fallback={null}>
-          <TShirtModel 
-            color={color} 
-            image={image} 
-            // We can't easily catch errors inside TShirtModel here, 
-            // but useGLTF will throw if it fails.
+          <ShirtModel
+            color={color}
+            frontImage={frontImage}
+            backImage={backImage}
           />
-          <Environment preset="city" />
-          <ContactShadows position={[0, -1, 0]} opacity={0.4} scale={10} blur={2} />
+          <Environment preset="studio" />
+          <ContactShadows
+            position={[0, -0.55, 0]}
+            opacity={0.35}
+            scale={3}
+            blur={2.5}
+            far={1.5}
+          />
         </Suspense>
-        
-        <OrbitControls enableZoom={false} enablePan={false} />
+
+        <OrbitControls
+          enableZoom={false}
+          enablePan={false}
+          minPolarAngle={Math.PI / 4}
+          maxPolarAngle={Math.PI / 1.8}
+          rotateSpeed={0.55}
+          target={[0, 0.05, 0]}
+        />
       </Canvas>
+
+      {/* Drag hint */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 14,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: 11,
+          color: 'rgba(255,255,255,0.3)',
+          fontFamily: 'inherit',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        ← aylantiring →
+      </div>
     </div>
   );
 };
