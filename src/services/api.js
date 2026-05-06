@@ -78,6 +78,9 @@ async function sendTelegramPhotoDirect(base64Data, caption, orderId, userId) {
 export async function submitOrder(orderData) {
   try {
     const orderId = Date.now().toString(); 
+    const activePlacements = Object.entries(orderData.placements).filter(([, p]) => p.image);
+    const total = calculateTotal(orderData);
+
     // 1. Notify Admin via Telegram FIRST (fast and reliable)
     const { name, phone, address, deliveryType } = orderData.customerInfo;
     const userId = orderData.telegramUserId || 'unknown';
