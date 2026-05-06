@@ -116,6 +116,8 @@ export async function submitOrder(orderData) {
     try {
       const orderDoc = {
         orderId,
+        telegramUserId: String(orderData.telegramUserId),
+        telegramUsername: orderData.telegramUsername,
         color: orderData.color,
         size: orderData.size,
         customerInfo: orderData.customerInfo,
