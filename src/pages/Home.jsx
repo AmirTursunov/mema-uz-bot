@@ -56,12 +56,18 @@ const Home = () => {
           border-radius: 50%; background: #10b981;
           margin-left: 5px; vertical-align: middle;
         }
+
+        /* ✅ ASOSIY TUZATISH: aniq balandlik berildi */
         .preview-box {
-          position: relative; margin-bottom: 18px;
-          border-radius: 24px; overflow: hidden;
+          position: relative;
+          height: 360px;          /* <-- shu qator muammoni hal qiladi */
+          margin-bottom: 18px;
+          border-radius: 24px;
+          overflow: hidden;
           border: 1px solid var(--border-subtle);
           box-shadow: 0 24px 60px rgba(0,0,0,0.55);
         }
+
         .preview-actions {
           position: absolute; top: 12px; right: 12px;
           display: flex; flex-direction: column; gap: 8px; z-index: 20;
@@ -126,7 +132,7 @@ const Home = () => {
           ))}
         </div>
 
-        {/* 3D preview */}
+        {/* 3D preview — ✅ height: 100% ishlaydi chunki preview-box aniq 360px */}
         <div className="preview-box">
           <span className="zone-label">
             {activeZone === 'front' ? '👕 Old' : '🔄 Orqa'}

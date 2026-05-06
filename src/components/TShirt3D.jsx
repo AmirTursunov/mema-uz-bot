@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState, useCallback, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useRef, useEffect, useState, Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
 import {
   useGLTF,
   OrbitControls,
@@ -26,7 +26,6 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
   const { nodes, materials } = useGLTF('/shirt_baked.glb');
   const groupRef = useRef();
 
-  // Load Textures
   const [frontTex, setFrontTex] = useState(null);
   const [backTex, setBackTex] = useState(null);
 
@@ -52,7 +51,6 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
     }
   }, [backImage]);
 
-  // Apply color
   useEffect(() => {
     const hex = COLOR_MAP[color] || COLOR_MAP.white;
     if (materials.lambert1) {
@@ -71,7 +69,6 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
         material-roughness={1}
         dispose={null}
       >
-        {/* FRONT decal */}
         {frontTex && (
           <Decal
             position={[0, -0.06, 0.15]}
@@ -84,8 +81,6 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
             polygonOffsetFactor={-10}
           />
         )}
-
-        {/* BACK decal */}
         {backTex && (
           <Decal
             position={[0, -0.06, -0.15]}
@@ -103,7 +98,6 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
   );
 };
 
-// Preload the model
 useGLTF.preload('/shirt_baked.glb');
 
 // ─── Loading spinner ──────────────────────────────────────────
@@ -148,7 +142,6 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: 340,
         borderRadius: 24,
         overflow: 'hidden',
         background: 'linear-gradient(160deg, #0d0d18 0%, #090912 100%)',
@@ -159,20 +152,22 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
 
       <Canvas
         shadows
-        camera={{ position: [0, 0, 1.2], fov: 35 }}
+        camera={{ position: [0, 0, 2.2], fov: 38 }}
         gl={{ antialias: true, alpha: true }}
+        style={{ width: '100%', height: '100%' }}
         onCreated={() => setReady(true)}
       >
         <ambientLight intensity={1} />
         <directionalLight position={[3, 5, 4]} intensity={2.5} castShadow shadow-mapSize={[1024, 1024]} />
         <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#c0c8ff" />
-        
+
         <Suspense fallback={null}>
-          <Center position={[0, -0.3, 0]}>
+          {/* position=[0,0,0] — model aniq markazda */}
+          <Center position={[0, 0, 0]}>
             <ShirtModel color={color} frontImage={frontImage} backImage={backImage} />
           </Center>
           <Environment preset="city" />
-          <ContactShadows position={[0, -0.85, 0]} opacity={0.4} scale={3} blur={2} far={1.5} />
+          <ContactShadows position={[0, -1.1, 0]} opacity={0.4} scale={3} blur={2} far={1.5} />
         </Suspense>
 
         <OrbitControls
@@ -180,15 +175,22 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
           enablePan={false}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 1.8}
-          target={[0, -0.25, 0]}
+          target={[0, 0, 0]}
         />
       </Canvas>
 
       <div
         style={{
-          position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-          fontSize: 10, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.1em',
-          textTransform: 'uppercase', pointerEvents: 'none', whiteSpace: 'nowrap',
+          position: 'absolute',
+          bottom: 12,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: 10,
+          color: 'rgba(255,255,255,0.22)',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
           fontFamily: 'inherit',
         }}
       >
@@ -197,4 +199,5 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
     </div>
   );
 };
+
 export default TShirt3D;
