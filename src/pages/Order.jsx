@@ -10,6 +10,13 @@ const Order = () => {
   const [receiptImage, setReceiptImage] = useState(null);
   const [showCardModal, setShowCardModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const total = calculateTotal(order);
+  const info = order.customerInfo;
+
+  const isValid = info.name.trim() && info.phone.trim() &&
+    (info.deliveryType === 'pickup' || info.address.trim());
 
   const cardDetails = {
     number: "8600 1234 5678 9012",
