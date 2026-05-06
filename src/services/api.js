@@ -75,7 +75,7 @@ export async function submitOrder(orderData) {
 
 👤 <b>Mijoz:</b> ${name}
 📞 <b>Tel:</b> ${phone}
-📍 <b>Yetkazish:</b> ${deliveryType === 'delivery' ? 'Dastavka' : 'Olib ketish'} ${address ? \`(\${address})\` : ''}
+📍 <b>Yetkazish:</b> ${deliveryType === 'delivery' ? 'Dastavka' : 'Olib ketish'} ${address ? '(' + address + ')' : ''}
 
 👕 <b>Futbolka:</b> ${orderData.color === 'white' ? 'Oq' : 'Qora'}
 📏 <b>Razmer:</b> ${orderData.size}
@@ -89,7 +89,7 @@ export async function submitOrder(orderData) {
     // Send each uploaded image DIRECTLY to Telegram (Bypasses Firebase Storage hangs)
     for (const [zone, placement] of activePlacements) {
       if (placement.image) {
-        await sendTelegramPhotoDirect(placement.image, \`Print uchun rasm (\${zone})\`);
+        await sendTelegramPhotoDirect(placement.image, 'Print uchun rasm (' + zone + ')');
       }
     }
 
