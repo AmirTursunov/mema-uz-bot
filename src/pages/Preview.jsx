@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder, calculateTotal, formatPrice, PRICES } from '../context/OrderContext';
-import TShirtPreview from '../components/TShirtPreview';
+import TShirt3D from '../components/TShirt3D';
 import SizeSelector from '../components/SizeSelector';
 import { ArrowRight, ShoppingCart, Check } from 'lucide-react';
 
@@ -24,15 +24,11 @@ const Preview = () => {
         .preview-page { padding-bottom: 20px; }
         .preview-title { font-size: 22px; font-weight: 800; font-family: var(--font-display); margin-bottom: 4px; }
         .preview-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
-        .preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
-        .preview-grid-item {
-          background: var(--bg-card); border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-xl); padding: 12px 8px 8px; position: relative; overflow: hidden;
-        }
-        .preview-grid-badge {
-          position: absolute; top: 8px; right: 8px; width: 20px; height: 20px;
-          border-radius: 50%; background: var(--gradient-success);
-          display: flex; align-items: center; justify-content: center;
+        .preview-box {
+          position: relative; height: 360px; margin-bottom: 24px;
+          border-radius: 24px; overflow: hidden;
+          border: 1px solid var(--border-subtle);
+          box-shadow: 0 24px 60px rgba(0,0,0,0.55);
         }
         .preview-section { margin-bottom: 24px; }
         .preview-section-label {
@@ -69,13 +65,12 @@ const Preview = () => {
         <p className="preview-subtitle">Dizayningizni tekshiring va o'lcham tanlang</p>
       </div>
 
-      <div className="preview-grid stagger-children">
-        {activePlacements.map(({ zone, image, position }) => (
-          <div key={zone} className="preview-grid-item">
-            <div className="preview-grid-badge"><Check size={12} color="#fff" /></div>
-            <TShirtPreview color={order.color} view={zone} image={image} position={position} />
-          </div>
-        ))}
+      <div className="preview-box">
+        <TShirt3D 
+          color={order.color}
+          frontImage={order.placements.front?.image}
+          backImage={order.placements.back?.image}
+        />
       </div>
 
       <div className="preview-section">
