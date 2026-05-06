@@ -21,30 +21,27 @@ export default async function handler(req, res) {
       const [action, orderId, userId] = data.split('_');
 
       if (action === 'accept') {
-        // Update Firestore status (so the app can sync)
-        // Note: This requires Firestore rules to be open
-        try {
-          // We can't easily query by doc ID without knowing it, but we have orderId field
-          // For simplicity in this serverless environment, we'll just send the message
-          // In a full setup, you'd use admin SDK to update Firestore
-        } catch (e) {}
-
-        // Notify the customer
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: userId,
-            text: `✅ <b>Buyurtmangiz qabul qilindi!</b>\n\nSizning <b>#${orderId}</b> raqamli buyurtmangiz muvaffaqiyatli qabul qilindi. Tez orada operatorimiz siz bilan bog'lanadi.`,
-            parse_mode: 'HTML'
-          })
-        });
+        // Notify the customer (if userId is valid)
+        if (userId && userId !== 'unknown') {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: userId,
+              text: `✅ <b>Buyurtmangiz qabul qilindi!</b>\n\nSizning <b>#${orderId}</b> raqamli buyurtmangiz muvaffaqiyatli qabul qilindi. Tez orada operatorimiz siz bilan bog'lanadi.`,
+              parse_mode: 'HTML'
+            })
+          }).catch(e => console.error('Error notifying user of acceptance:', e));
+        }
 
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callback_query_id: callbackQuery.id, text: "Mijozga xabar yuborildi ✅" })
-        });
+          body: JSON.stringify({ 
+            callback_query_id: callbackQuery.id, 
+            text: userId === 'unknown' ? "Mijoz ID topilmadi, lekin buyurtma qabul qilindi ✅" : "Mijozga xabar yuborildi ✅" 
+          })
+        }).catch(e => console.error('Error answering callback:', e));
 
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageCaption`, {
           method: 'POST',
@@ -55,7 +52,7 @@ export default async function handler(req, res) {
             caption: callbackQuery.message.caption + "\n\n✅ <b>QABUL QILINDI</b>",
             parse_mode: 'HTML'
           })
-        });
+        }).catch(e => console.error('Error editing message caption:', e));
       }
 
       if (action === 'reject') {
@@ -69,13 +66,13 @@ export default async function handler(req, res) {
             parse_mode: 'HTML',
             reply_markup: { force_reply: true }
           })
-        });
+        }).catch(e => console.error('Error sending reject prompt:', e));
 
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callback_query_id: callbackQuery.id })
-        });
+        }).catch(e => console.error('Error answering reject callback:', e));
       }
 
       return res.status(200).send('OK');
@@ -84,10 +81,10 @@ export default async function handler(req, res) {
     // 2. Handle Messages (/start or Replies)
     if (body.message) {
       const chatId = body.message.chat.id;
-      const text = body.message.text;
+      const text = body.message.text || '';
 
       // Handle Admin Reply for Rejection Reason
-      if (body.message.reply_to_message && body.message.reply_to_message.text.includes('Rad etish sababini yozing')) {
+      if (body.message.reply_to_message && body.message.reply_to_message.text && body.message.reply_to_message.text.includes('Rad etish sababini yozing')) {
         const replyText = body.message.reply_to_message.text;
         const orderIdMatch = replyText.match(/ID: (\d+)/);
         const userIdMatch = replyText.match(/USER: (\d+)/);
@@ -96,28 +93,26 @@ export default async function handler(req, res) {
           const oId = orderIdMatch[1];
           const uId = userIdMatch[1];
 
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: uId,
-              text: `❌ <b>Buyurtmangiz rad etildi</b>\n\n#${oId} raqamli buyurtmangiz bekor qilindi.\n\n<b>Sabab:</b> ${text}`,
-              parse_mode: 'HTML'
-            })
-          });
+          if (uId !== 'unknown') {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: uId,
+                text: `❌ <b>Buyurtmangiz rad etildi</b>\n\n#${oId} raqamli buyurtmangiz bekor qilindi.\n\n<b>Sabab:</b> ${text}`,
+                parse_mode: 'HTML'
+              })
+            }).catch(e => console.error('Error notifying user:', e));
+          }
 
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, text: "Mijozga rad javobi yuborildi 📤" })
-          });
+          }).catch(e => console.error('Error notifying admin:', e));
         }
         return res.status(200).send('OK');
       }
-
-      if (text && text.startsWith('/start')) {
-      const chatId = body.message.chat.id;
-      const text = body.message.text;
 
       // Handle /start command
       if (text.startsWith('/start')) {
@@ -127,7 +122,6 @@ Assalomu alaykum! <b>MEMA UZ</b> ga xush kelibsiz! 👕✨
 O'zingizga yoqqan dizayn va rasmdagi futbolkani yaratish uchun pastdagi tugmani bosing va <b>Mini Ilova</b> ga kiring!👇
         `.trim();
 
-        // Send message with inline keyboard
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -136,17 +130,10 @@ O'zingizga yoqqan dizayn va rasmdagi futbolkani yaratish uchun pastdagi tugmani 
             text: welcomeMessage,
             parse_mode: 'HTML',
             reply_markup: {
-              inline_keyboard: [
-                [
-                  {
-                    text: "👕 Futbolka yaratish",
-                    web_app: { url: WEB_APP_URL }
-                  }
-                ]
-              ]
+              inline_keyboard: [[{ text: "👕 Futbolka yaratish", web_app: { url: WEB_APP_URL } }]]
             }
           })
-        });
+        }).catch(e => console.error('Error sending start message:', e));
       }
     }
 
