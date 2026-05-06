@@ -20,7 +20,7 @@ const MyOrders = () => {
 
     const q = query(
       collection(db, 'orders'),
-      where('customerInfo.telegramUserId', '==', String(telegramUser.id)),
+      where('telegramUserId', 'in', [telegramUser.id, String(telegramUser.id)]),
       orderBy('createdAt', 'desc')
     );
 
@@ -109,9 +109,6 @@ const MyOrders = () => {
               </div>
               <div className="order-footer">
                 <span className="order-price">{new Intl.NumberFormat('uz-UZ').format(o.totalPrice)} so'm</span>
-                <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => navigate('/')}>
-                  Yangi buyurtma
-                </button>
               </div>
             </div>
           ))
