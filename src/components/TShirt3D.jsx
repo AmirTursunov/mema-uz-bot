@@ -62,7 +62,7 @@ const ShirtModel = ({ color, frontImage, backImage }) => {
   }, [color, materials]);
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} scale={[1.8, 1.8, 1.8]}>
       <mesh
         castShadow
         receiveShadow
@@ -159,7 +159,7 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
 
       <Canvas
         shadows
-        camera={{ position: [0, 0, 2.5], fov: 25 }}
+        camera={{ position: [0, 0, 1.5], fov: 35 }}
         gl={{ antialias: true, alpha: true }}
         onCreated={() => setReady(true)}
       >
@@ -168,11 +168,11 @@ const TShirt3D = ({ color = 'white', frontImage = null, backImage = null }) => {
         <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#c0c8ff" />
         
         <Suspense fallback={null}>
-          <Center>
+          <Center position={[0, -0.1, 0]}>
             <ShirtModel color={color} frontImage={frontImage} backImage={backImage} />
           </Center>
           <Environment preset="city" />
-          <ContactShadows position={[0, -0.5, 0]} opacity={0.3} scale={2} blur={1.5} far={1} />
+          <ContactShadows position={[0, -0.6, 0]} opacity={0.3} scale={2.5} blur={1.5} far={1} />
         </Suspense>
 
         <OrbitControls
