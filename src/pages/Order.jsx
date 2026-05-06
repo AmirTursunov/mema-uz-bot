@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder, calculateTotal, formatPrice } from '../context/OrderContext';
 import { Send, Truck, Store, User, Phone, MapPin, Loader2 } from 'lucide-react';
+import { submitOrder } from '../services/api';
 
 const Order = () => {
   const navigate = useNavigate();
-  const { order, setCustomerInfo } = useOrder();
+  const { order, setCustomerInfo, resetOrder } = useOrder();
   const [loading, setLoading] = useState(false);
   const total = calculateTotal(order);
   const info = order.customerInfo;
@@ -18,31 +19,22 @@ const Order = () => {
     setLoading(true);
 
     try {
-      // Send order to Telegram bot via API
       const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      const orderData = {
+      
+      // We pass the full order object including the placements (which have the base64 images)
+      // to the submitOrder function. The API service will handle the upload and cleanup.
+      const orderDataToSubmit = {
+        ...order,
         telegramUserId: telegramUser?.id || 'unknown',
         telegramUsername: telegramUser?.username || telegramUser?.first_name || 'unknown',
-        color: order.color,
-        size: order.size,
-        placements: Object.entries(order.placements)
-          .filter(([, p]) => p.image)
-          .map(([zone]) => zone),
-        customerName: info.name,
-        customerPhone: info.phone,
-        deliveryType: info.deliveryType,
-        deliveryAddress: info.address,
-        totalPrice: total,
       };
 
-      const resp = await fetch('/api/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      });
+      const orderId = await submitOrder(orderDataToSubmit);
+      
+      // Optional: Clear the cart/order
+      // resetOrder();
 
-      if (!resp.ok) throw new Error('Order failed');
-      navigate('/confirmation');
+      navigate('/confirmation', { state: { orderId } });
     } catch (err) {
       console.error('Order error:', err);
       // Still navigate to confirmation for demo

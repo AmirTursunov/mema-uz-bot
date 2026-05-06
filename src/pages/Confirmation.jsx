@@ -1,11 +1,14 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useOrder } from '../context/OrderContext';
-import { CheckCircle2, Home, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, Home, ShoppingBag, Hash } from 'lucide-react';
 
 const Confirmation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { resetOrder } = useOrder();
+  
+  const orderId = location.state?.orderId || 'MEMA-' + Math.floor(Math.random() * 10000);
 
   useEffect(() => {
     // Haptic feedback in Telegram
@@ -73,6 +76,13 @@ const Confirmation = () => {
       <p className="confirm-text">
         Buyurtmangiz muvaffaqiyatli yuborildi. Tez orada siz bilan bog'lanamiz.
       </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 32, padding: '8px 16px', background: 'var(--bg-card)', borderRadius: 100, width: 'max-content', margin: '0 auto 32px' }}>
+        <Hash size={14} color="var(--text-muted)" />
+        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+          ID: {orderId}
+        </span>
+      </div>
 
       <div className="confirm-card">
         <div className="confirm-card-title">Keyingi qadamlar</div>
