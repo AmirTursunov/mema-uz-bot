@@ -98,16 +98,27 @@ export async function submitOrder(orderData) {
 
 👕 <b>Futbolka:</b> ${orderData.color === 'white' ? 'Oq' : 'Qora'}
 📏 <b>Razmer:</b> ${orderData.size}
-🎨 <b>Joylashuv:</b> ${zone === 'front' ? 'Oldi' : zone === 'back' ? 'Orqa' : zone === 'leftSleeve' ? 'Chap yeng' : 'O\'ng yeng'}
 💰 <b>Jami:</b> ${formatPrice(total)}
+
+💳 <b>To'lov:</b> 100% Oldindan (Chek ilova qilindi)
     `.trim();
 
     // Send the first uploaded image with the full text as caption, subsequent ones with short caption
     let isFirst = true;
-    for (const [zone, placement] of activePlacements) {
-      if (placement.image) {
-        const caption = isFirst ? getBaseText(zone) : `Print uchun rasm (${zone})`;
-        await sendTelegramPhotoDirect(placement.image, caption, orderId, userId);
+    
+    // Combine designs and receipt for sending
+    const allPhotos = [...activePlacements.map(([zone, p]) => ({ image: p.image, zone })), 
+                        { image: orderData.paymentReceipt, zone: 'payment' }];
+
+    for (const photo of allPhotos) {
+      if (photo.image) {
+        const zoneName = photo.zone === 'front' ? 'Oldi' : 
+                         photo.zone === 'back' ? 'Orqa' : 
+                         photo.zone === 'leftSleeve' ? 'Chap yeng' : 
+                         photo.zone === 'rightSleeve' ? 'O\'ng yeng' : 'To\'lov cheki';
+                         
+        const caption = isFirst ? getBaseText(photo.zone) : `Rasm: ${zoneName}`;
+        await sendTelegramPhotoDirect(photo.image, caption, orderId, userId);
         isFirst = false;
       }
     }
