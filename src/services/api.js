@@ -68,7 +68,7 @@ async function ensureWhiteBackground(dataurl) {
 }
 
 
-// Helper to combine multiple base64 images into one canvas image
+// Helper to combine multiple base64 images into one canvas image in a grid layout
 async function combineImages(imageDataUrls) {
   return new Promise((resolve) => {
     const images = [];
@@ -78,53 +78,52 @@ async function combineImages(imageDataUrls) {
       resolve('');
       return;
     }
+
+    const drawGridAndResolve = () => {
+      const validImages = images.filter(i => i);
+      if (validImages.length === 0) {
+        resolve('');
+        return;
+      }
+      
+      const cols = Math.min(2, validImages.length);
+      const rows = Math.ceil(validImages.length / cols);
+      const cellWidth = Math.max(...validImages.map(i => i.width));
+      const cellHeight = Math.max(...validImages.map(i => i.height));
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = cellWidth * cols;
+      canvas.height = cellHeight * rows;
+      const ctx = canvas.getContext('2d');
+      
+      // Fill white background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw each image in a grid
+      validImages.forEach((img, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        // Center image in its cell
+        const x = col * cellWidth + (cellWidth - img.width) / 2;
+        const y = row * cellHeight + (cellHeight - img.height) / 2;
+        ctx.drawImage(img, x, y);
+      });
+      
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    };
+
     imageDataUrls.forEach((dataUrl, idx) => {
       const img = new Image();
       img.onload = () => {
         images[idx] = img;
         loaded++;
-        if (loaded === total) {
-          // Determine canvas size (stack vertically)
-          const width = Math.max(...images.map(i => i.width));
-          const height = images.reduce((sum, i) => sum + i.height, 0);
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          // Fill white background
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
-          // Draw each image one after another vertically
-          let y = 0;
-          images.forEach(i => {
-            ctx.drawImage(i, 0, y);
-            y += i.height;
-          });
-          resolve(canvas.toDataURL('image/jpeg', 0.9));
-        }
+        if (loaded === total) drawGridAndResolve();
       };
       img.onerror = () => {
-        // Skip faulty image
         images[idx] = null;
         loaded++;
-        if (loaded === total) {
-          // Filter out nulls
-          const validImages = images.filter(i => i);
-          if (validImages.length === 0) resolve('');
-          else {
-            const width = Math.max(...validImages.map(i => i.width));
-            const height = validImages.reduce((sum, i) => sum + i.height, 0);
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, width, height);
-            let y = 0;
-            validImages.forEach(i => { ctx.drawImage(i, 0, y); y += i.height; });
-            resolve(canvas.toDataURL('image/jpeg', 0.9));
-          }
-        }
+        if (loaded === total) drawGridAndResolve();
       };
       img.src = dataUrl;
     });
@@ -148,34 +147,24 @@ async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   formData.append('caption', caption);
   formData.append('parse_mode', 'HTML');
 
-  // Send the combined photo
+  if (orderId && userId) {
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
+          { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` },
+        ],
+      ],
+    };
+    formData.append('reply_markup', JSON.stringify(replyMarkup));
+  }
+
+  // Send the combined photo with caption and inline keyboard
   const sendPhotoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
   await fetch(sendPhotoUrl, {
     method: 'POST',
     body: formData,
   });
-
-  // Send inline keyboard as separate message if needed
-  if (orderId && userId) {
-    const buttonUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await fetch(buttonUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: caption,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
-              { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` },
-            ],
-          ],
-        },
-      }),
-    });
-  }
 }
 
 export async function submitOrder(orderData) {
