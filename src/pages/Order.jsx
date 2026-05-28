@@ -49,7 +49,7 @@ const Order = () => {
 
     try {
       const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      
+
       const orderDataToSubmit = {
         ...order,
         telegramUserId: telegramUser?.id || 'unknown',
@@ -92,7 +92,7 @@ const Order = () => {
         }
         .delivery-option-icon { margin-bottom: 8px; color: var(--text-secondary); }
         .delivery-option.active .delivery-option-icon { color: var(--accent-primary); }
-        .delivery-option-label { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+        .delivery-option-label { font-size: 14px; font-weight: 600; margin-bottom: 2px; color:white}
         .delivery-option-price { font-size: 12px; color: var(--text-muted); }
         .delivery-option.active .delivery-option-price { color: var(--accent-primary); }
         
@@ -193,7 +193,7 @@ const Order = () => {
           <button className={`delivery-option ${info.deliveryType === 'delivery' ? 'active' : ''}`}
             onClick={() => setCustomerInfo({ deliveryType: 'delivery' })}>
             <div className="delivery-option-icon"><Truck size={24} /></div>
-            <div className="delivery-option-label">Dastavka</div>
+            <div className="delivery-option-label">Dostavka</div>
             <div className="delivery-option-price">{formatPrice(15000)}</div>
           </button>
           <button className={`delivery-option ${info.deliveryType === 'pickup' ? 'active' : ''}`}
@@ -221,7 +221,7 @@ const Order = () => {
           <button className="pay-btn-trigger" onClick={() => setShowCardModal(true)}>
             💳 Karta raqamni ko'rish
           </button>
-          
+
           <label className="receipt-upload-btn">
             <input type="file" accept="image/*" onChange={handleReceiptUpload} style={{ display: 'none' }} />
             {receiptImage ? (
