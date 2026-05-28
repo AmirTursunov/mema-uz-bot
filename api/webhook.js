@@ -50,17 +50,7 @@ export default async function handler(req, res) {
 
         // Notify the customer (if userId is valid)
         if (userId && userId !== 'unknown') {
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: callbackQuery.message.chat.id,
-            message_id: callbackQuery.message.message_id,
-            text: callbackQuery.message.text + "\n\n❌ RAD ETILDI"
-          })
-        }).catch(e => console.error('Error editing message text (reject):', e));
-
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -80,13 +70,14 @@ export default async function handler(req, res) {
           })
         }).catch(e => console.error('Error answering callback:', e));
 
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+        const oldCaption = callbackQuery.message.caption || "";
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageCaption`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: callbackQuery.message.chat.id,
             message_id: callbackQuery.message.message_id,
-            text: callbackQuery.message.text + "\n\n✅ QABUL QILINDI",
+            caption: oldCaption + "\n\n✅ QABUL QILINDI",
             parse_mode: 'HTML'
           })
         }).catch(e => console.error('Error editing message caption:', e));

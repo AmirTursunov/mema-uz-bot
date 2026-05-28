@@ -68,103 +68,43 @@ async function ensureWhiteBackground(dataurl) {
 }
 
 
-// Helper to combine multiple base64 images into one canvas image in a grid layout
-async function combineImages(imageDataUrls) {
-  return new Promise((resolve) => {
-    const images = [];
-    let loaded = 0;
-    const total = imageDataUrls.length;
-    if (total === 0) {
-      resolve('');
-      return;
-    }
-
-    const drawGridAndResolve = () => {
-      const validImages = images.filter(i => i);
-      if (validImages.length === 0) {
-        resolve('');
-        return;
-      }
-      
-      const cols = Math.min(2, validImages.length);
-      const rows = Math.ceil(validImages.length / cols);
-      const cellWidth = Math.max(...validImages.map(i => i.width));
-      const cellHeight = Math.max(...validImages.map(i => i.height));
-      
-      const canvas = document.createElement('canvas');
-      canvas.width = cellWidth * cols;
-      canvas.height = cellHeight * rows;
-      const ctx = canvas.getContext('2d');
-      
-      // Fill white background
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw each image in a grid
-      validImages.forEach((img, index) => {
-        const col = index % cols;
-        const row = Math.floor(index / cols);
-        // Center image in its cell
-        const x = col * cellWidth + (cellWidth - img.width) / 2;
-        const y = row * cellHeight + (cellHeight - img.height) / 2;
-        ctx.drawImage(img, x, y);
-      });
-      
-      resolve(canvas.toDataURL('image/jpeg', 0.9));
-    };
-
-    imageDataUrls.forEach((dataUrl, idx) => {
-      const img = new Image();
-      img.onload = () => {
-        images[idx] = img;
-        loaded++;
-        if (loaded === total) drawGridAndResolve();
-      };
-      img.onerror = () => {
-        images[idx] = null;
-        loaded++;
-        if (loaded === total) drawGridAndResolve();
-      };
-      img.src = dataUrl;
-    });
-  });
-}
-
 async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   if (!BOT_TOKEN || !CHAT_ID) return;
 
-  // Ensure all images have a white background, then combine them vertically
-  const imageDataUrls = await Promise.all(
-    photos.map(p => ensureWhiteBackground(p.image))
-  );
-  const combinedDataUrl = await combineImages(imageDataUrls);
-  const blob = dataURLtoBlob(combinedDataUrl);
-  const filename = `combined.jpg`;
+  for (let index = 0; index < photos.length; index++) {
+    const photo = photos[index];
+    const whiteBgDataUrl = await ensureWhiteBackground(photo.image);
+    const blob = dataURLtoBlob(whiteBgDataUrl);
+    const filename = `photo${index}.jpg`;
 
-  const formData = new FormData();
-  formData.append('chat_id', CHAT_ID);
-  formData.append('photo', blob, filename);
-  formData.append('caption', caption);
-  formData.append('parse_mode', 'HTML');
+    const formData = new FormData();
+    formData.append('chat_id', CHAT_ID);
+    formData.append('photo', blob, filename);
 
-  if (orderId && userId) {
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
-          { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` },
-        ],
-      ],
-    };
-    formData.append('reply_markup', JSON.stringify(replyMarkup));
+    // Attach caption and buttons ONLY to the first image
+    if (index === 0) {
+      formData.append('caption', caption);
+      formData.append('parse_mode', 'HTML');
+
+      if (orderId && userId) {
+        const replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
+              { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` },
+            ],
+          ],
+        };
+        formData.append('reply_markup', JSON.stringify(replyMarkup));
+      }
+    }
+
+    const sendPhotoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+    await fetch(sendPhotoUrl, {
+      method: 'POST',
+      body: formData,
+    });
   }
-
-  // Send the combined photo with caption and inline keyboard
-  const sendPhotoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
-  await fetch(sendPhotoUrl, {
-    method: 'POST',
-    body: formData,
-  });
 }
 
 export async function submitOrder(orderData) {
