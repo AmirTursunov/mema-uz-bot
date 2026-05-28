@@ -67,40 +67,95 @@ async function ensureWhiteBackground(dataurl) {
   });
 }
 
-// Helper to send multiple photos as a single Media Group (Album)
+
+// Helper to combine multiple base64 images into one canvas image
+async function combineImages(imageDataUrls) {
+  return new Promise((resolve) => {
+    const images = [];
+    let loaded = 0;
+    const total = imageDataUrls.length;
+    if (total === 0) {
+      resolve('');
+      return;
+    }
+    imageDataUrls.forEach((dataUrl, idx) => {
+      const img = new Image();
+      img.onload = () => {
+        images[idx] = img;
+        loaded++;
+        if (loaded === total) {
+          // Determine canvas size (stack vertically)
+          const width = Math.max(...images.map(i => i.width));
+          const height = images.reduce((sum, i) => sum + i.height, 0);
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          // Fill white background
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          // Draw each image one after another vertically
+          let y = 0;
+          images.forEach(i => {
+            ctx.drawImage(i, 0, y);
+            y += i.height;
+          });
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        }
+      };
+      img.onerror = () => {
+        // Skip faulty image
+        images[idx] = null;
+        loaded++;
+        if (loaded === total) {
+          // Filter out nulls
+          const validImages = images.filter(i => i);
+          if (validImages.length === 0) resolve('');
+          else {
+            const width = Math.max(...validImages.map(i => i.width));
+            const height = validImages.reduce((sum, i) => sum + i.height, 0);
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            let y = 0;
+            validImages.forEach(i => { ctx.drawImage(i, 0, y); y += i.height; });
+            resolve(canvas.toDataURL('image/jpeg', 0.9));
+          }
+        }
+      };
+      img.src = dataUrl;
+    });
+  });
+}
+
 async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   if (!BOT_TOKEN || !CHAT_ID) return;
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup`;
-  
+
+  // Ensure all images have a white background, then combine them vertically
+  const imageDataUrls = await Promise.all(
+    photos.map(p => ensureWhiteBackground(p.image))
+  );
+  const combinedDataUrl = await combineImages(imageDataUrls);
+  const blob = dataURLtoBlob(combinedDataUrl);
+  const filename = `combined.jpg`;
+
   const formData = new FormData();
   formData.append('chat_id', CHAT_ID);
-  
-  const media = [];
-  
-  for (let index = 0; index < photos.length; index++) {
-    const photo = photos[index];
-    const filename = `photo${index}.jpg`;
-    const whiteBgDataUrl = await ensureWhiteBackground(photo.image);
-    const blob = dataURLtoBlob(whiteBgDataUrl);
-    formData.append(filename, blob, filename);
-    
-    media.push({
-      type: 'photo',
-      media: `attach://${filename}`,
-      caption: '', // No caption on images, sent separately
-      parse_mode: 'HTML'
-    });
-  }
+  formData.append('photo', blob, filename);
+  formData.append('caption', caption);
+  formData.append('parse_mode', 'HTML');
 
-  formData.append('media', JSON.stringify(media));
-
-  // Note: MediaGroup doesn't support reply_markup directly. 
-  // We will send the buttons as a separate small message after the media group.
-  const response = await fetch(url, {
+  // Send the combined photo
+  const sendPhotoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+  await fetch(sendPhotoUrl, {
     method: 'POST',
     body: formData,
   });
 
+  // Send inline keyboard as separate message if needed
   if (orderId && userId) {
     const buttonUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     await fetch(buttonUrl, {
@@ -114,10 +169,10 @@ async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
           inline_keyboard: [
             [
               { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
-              { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` }
-            ]
-          ]
-        }
+              { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` },
+            ],
+          ],
+        },
       }),
     });
   }
