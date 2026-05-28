@@ -68,103 +68,59 @@ async function ensureWhiteBackground(dataurl) {
 }
 
 
-// Helper to combine multiple base64 images into one canvas image in a grid layout with gaps
-async function combineImages(imageDataUrls) {
-  return new Promise((resolve) => {
-    const images = [];
-    let loaded = 0;
-    const total = imageDataUrls.length;
-    if (total === 0) {
-      resolve('');
-      return;
-    }
-
-    const drawGridAndResolve = () => {
-      const validImages = images.filter(i => i);
-      if (validImages.length === 0) {
-        resolve('');
-        return;
-      }
-      
-      const cols = Math.min(2, validImages.length);
-      const rows = Math.ceil(validImages.length / cols);
-      const cellWidth = Math.max(...validImages.map(i => i.width));
-      const cellHeight = Math.max(...validImages.map(i => i.height));
-      const gap = 20; // 20px gap between images
-      
-      const canvas = document.createElement('canvas');
-      canvas.width = cellWidth * cols + gap * (cols + 1);
-      canvas.height = cellHeight * rows + gap * (rows + 1);
-      const ctx = canvas.getContext('2d');
-      
-      // Fill white background
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw each image in a grid
-      validImages.forEach((img, index) => {
-        const col = index % cols;
-        const row = Math.floor(index / cols);
-        // Center image in its cell, accounting for gaps
-        const x = gap + col * (cellWidth + gap) + (cellWidth - img.width) / 2;
-        const y = gap + row * (cellHeight + gap) + (cellHeight - img.height) / 2;
-        ctx.drawImage(img, x, y);
-      });
-      
-      resolve(canvas.toDataURL('image/jpeg', 0.9));
-    };
-
-    imageDataUrls.forEach((dataUrl, idx) => {
-      const img = new Image();
-      img.onload = () => {
-        images[idx] = img;
-        loaded++;
-        if (loaded === total) drawGridAndResolve();
-      };
-      img.onerror = () => {
-        images[idx] = null;
-        loaded++;
-        if (loaded === total) drawGridAndResolve();
-      };
-      img.src = dataUrl;
-    });
-  });
-}
-
 async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   if (!BOT_TOKEN || !CHAT_ID) return;
 
-  const imageDataUrls = await Promise.all(
-    photos.map(p => ensureWhiteBackground(p.image))
-  );
-  
-  const combinedDataUrl = await combineImages(imageDataUrls);
-  const blob = dataURLtoBlob(combinedDataUrl);
-  const filename = `combined.jpg`;
-
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup`;
   const formData = new FormData();
   formData.append('chat_id', CHAT_ID);
-  formData.append('photo', blob, filename);
-  formData.append('caption', caption);
-  formData.append('parse_mode', 'HTML');
-
-  if (orderId && userId) {
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
-          { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` },
-        ],
-      ],
-    };
-    formData.append('reply_markup', JSON.stringify(replyMarkup));
+  
+  const media = [];
+  
+  for (let index = 0; index < photos.length; index++) {
+    const photo = photos[index];
+    const filename = `photo${index}.jpg`;
+    const whiteBgDataUrl = await ensureWhiteBackground(photo.image);
+    const blob = dataURLtoBlob(whiteBgDataUrl);
+    formData.append(filename, blob, filename);
+    
+    media.push({
+      type: 'photo',
+      media: `attach://${filename}`,
+      caption: index === 0 ? caption : '',
+      parse_mode: 'HTML'
+    });
   }
 
-  const sendPhotoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
-  await fetch(sendPhotoUrl, {
+  formData.append('media', JSON.stringify(media));
+
+  // Send the MediaGroup
+  await fetch(url, {
     method: 'POST',
     body: formData,
   });
+
+  // Send the buttons as a separate message underneath
+  if (orderId && userId) {
+    const buttonUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    await fetch(buttonUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: `#${orderId} buyurtmani boshqarish:`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Qabul qilish", callback_data: `accept_${orderId}_${userId}` },
+              { text: "❌ Bekor qilish", callback_data: `reject_${orderId}_${userId}` }
+            ]
+          ]
+        }
+      }),
+    });
+  }
 }
 
 export async function submitOrder(orderData) {

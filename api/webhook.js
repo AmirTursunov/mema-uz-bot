@@ -70,17 +70,17 @@ export default async function handler(req, res) {
           })
         }).catch(e => console.error('Error answering callback:', e));
 
-        const oldCaption = callbackQuery.message.caption || "";
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageCaption`, {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: callbackQuery.message.chat.id,
             message_id: callbackQuery.message.message_id,
-            caption: oldCaption + "\n\n✅ QABUL QILINDI",
-            parse_mode: 'HTML'
+            text: `#${orderId} buyurtma: ✅ QABUL QILINDI`,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [] }
           })
-        }).catch(e => console.error('Error editing message caption:', e));
+        }).catch(e => console.error('Error editing message text:', e));
       }
 
       if (action === 'reject') {
@@ -113,6 +113,18 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callback_query_id: callbackQuery.id })
         }).catch(e => console.error('Error answering reject callback:', e));
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: callbackQuery.message.chat.id,
+            message_id: callbackQuery.message.message_id,
+            text: `#${orderId} buyurtma: ❌ RAD ETISH (Sabab kutilmoqda)`,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [] }
+          })
+        }).catch(e => console.error('Error editing message text:', e));
       }
 
       return res.status(200).send('OK');
