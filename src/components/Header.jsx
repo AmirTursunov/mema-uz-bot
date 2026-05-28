@@ -89,7 +89,7 @@ const Header = () => {
           )}
           <div className="header-logo">
             <div className="header-logo-icon">M</div>
-            <span className="header-logo-text">MEMA UZ</span>
+            <span className="header-logo-text">Brand</span>
           </div>
           <div className="header-spacer" />
         </div>

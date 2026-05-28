@@ -21,7 +21,7 @@ const Order = () => {
   const cardDetails = {
     number: "8600 1234 5678 9012",
     name: "AMIR TURSUNOV",
-    bank: "MEMA UZ OFFICIAL"
+    bank: "Brand"
   };
 
   const copyToClipboard = () => {

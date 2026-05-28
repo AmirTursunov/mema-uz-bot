@@ -57,7 +57,7 @@ const TelegramRedirectModal = () => {
           </svg>
         </div>
         <h3 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '12px', color: '#fff', fontFamily: 'var(--font-display)' }}>
-          MEMA UZ
+          Brand
         </h3>
         <p style={{ fontSize: '16px', lineHeight: 1.5, color: 'rgba(255,255,255,0.7)', marginBottom: '30px' }}>
           Ushbu ilova Telegram ichida ishlashga mo'ljallangan. Barcha imkoniyatlardan foydalanish uchun botimizga kiring.

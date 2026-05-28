@@ -50,7 +50,17 @@ export default async function handler(req, res) {
 
         // Notify the customer (if userId is valid)
         if (userId && userId !== 'unknown') {
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: callbackQuery.message.chat.id,
+            message_id: callbackQuery.message.message_id,
+            text: callbackQuery.message.text + "\n\n❌ RAD ETILDI"
+          })
+        }).catch(e => console.error('Error editing message text (reject):', e));
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -70,13 +80,13 @@ export default async function handler(req, res) {
           })
         }).catch(e => console.error('Error answering callback:', e));
 
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageCaption`, {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: callbackQuery.message.chat.id,
             message_id: callbackQuery.message.message_id,
-            caption: callbackQuery.message.caption + "\n\n✅ <b>QABUL QILINDI</b>",
+            text: callbackQuery.message.text + "\n\n✅ QABUL QILINDI",
             parse_mode: 'HTML'
           })
         }).catch(e => console.error('Error editing message caption:', e));
@@ -171,7 +181,7 @@ export default async function handler(req, res) {
       // Handle /start command
       if (text.startsWith('/start')) {
         const welcomeMessage = `
-Assalomu alaykum! <b>MEMA UZ</b> ga xush kelibsiz! 👕✨
+Assalomu alaykum! <b>Brand</b> ga xush kelibsiz! 👕✨
 
 O'zingizga yoqqan dizayn va rasmdagi futbolkani yaratish uchun pastdagi tugmani bosing va <b>Mini Ilova</b> ga kiring!👇
         `.trim();

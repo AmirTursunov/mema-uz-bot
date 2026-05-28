@@ -45,6 +45,28 @@ function dataURLtoBlob(dataurl) {
   return new Blob([u8arr], {type:mime});
 }
 
+
+// Helper to fill white background
+async function ensureWhiteBackground(dataurl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      // Fill white background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Draw image
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.onerror = () => resolve(dataurl); // Fallback
+    img.src = dataurl;
+  });
+}
+
 // Helper to send multiple photos as a single Media Group (Album)
 async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   if (!BOT_TOKEN || !CHAT_ID) return;
@@ -55,18 +77,20 @@ async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
   
   const media = [];
   
-  photos.forEach((photo, index) => {
+  for (let index = 0; index < photos.length; index++) {
+    const photo = photos[index];
     const filename = `photo${index}.jpg`;
-    const blob = dataURLtoBlob(photo.image);
+    const whiteBgDataUrl = await ensureWhiteBackground(photo.image);
+    const blob = dataURLtoBlob(whiteBgDataUrl);
     formData.append(filename, blob, filename);
     
     media.push({
       type: 'photo',
       media: `attach://${filename}`,
-      caption: index === 0 ? caption : '', // Caption goes on the first image
+      caption: '', // No caption on images, sent separately
       parse_mode: 'HTML'
     });
-  });
+  }
 
   formData.append('media', JSON.stringify(media));
 
@@ -84,7 +108,7 @@ async function sendTelegramMediaGroup(photos, caption, orderId, userId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: CHAT_ID,
-        text: `<b>#${orderId}</b> buyurtmani boshqarish:`,
+        text: caption,
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [

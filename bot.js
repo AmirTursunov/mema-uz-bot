@@ -13,7 +13,7 @@ const setMenu = async () => {
     await bot.setChatMenuButton({
       menu_button: {
         type: "web_app",
-        text: "MEMA UZ 👕",
+        text: "Brand 👕",
         web_app: { url: webAppUrl }
       }
     });
@@ -30,13 +30,13 @@ bot.on('message', async (msg) => {
   const text = msg.text;
 
   if(text === '/start') {
-    await bot.sendMessage(chatId, "Assalomu alaykum! MEMA UZ — Futbolkalarni o'zingiz dizayn qiladigan botimizga xush kelibsiz! 🚀\n\nFutbolka dizayn qilishni boshlash uchun pastdagi tugmani bosing 👇", {
+    await bot.sendMessage(chatId, "Assalomu alaykum! Brand — Futbolkalarni o'zingiz dizayn qiladigan botimizga xush kelibsiz! 🚀\n\nFutbolka dizayn qilishni boshlash uchun pastdagi tugmani bosing 👇", {
       reply_markup: {
         inline_keyboard: [
           [{text: 'Dizayn qilishni boshlash 🎨', web_app: {url: webAppUrl}}]
         ],
         keyboard: [
-          [{text: 'MEMA UZ 👕', web_app: {url: webAppUrl}}]
+          [{text: 'Brand 👕', web_app: {url: webAppUrl}}]
         ],
         resize_keyboard: true
       }
@@ -44,4 +44,4 @@ bot.on('message', async (msg) => {
   }
 });
 
-console.log("MEMA UZ Boti ishga tushdi...");
+console.log("Brand Boti ishga tushdi...");
